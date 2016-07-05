@@ -5,8 +5,14 @@ using namespace std;
 
 int main()
 {
-	int temp;
-	cin >> temp;
+	double num, den;
+
+	cin >> num;
+	cin >> den;
+
+	Fraction<double> test(num, den);
+
+	cout << test.GetNumerator() << " / " << test.GetDenominator() << endl;
 
 	return 0;
 }

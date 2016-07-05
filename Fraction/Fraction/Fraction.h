@@ -1,5 +1,8 @@
 #ifndef FRACTION_HPP
 #define FRACTION_HPP
+#include <cassert>
+#include <cmath>
+#define SMALL 1e-10
 /*
 Creator: Andrew Edwards
 Date: 5.16.16
@@ -25,82 +28,106 @@ FUTURE WORK:
 	Set Numerator/Denominator individual functions --Possible
 */
 
-template<typename T, typename U>
+template<typename T>
 class Fraction
 {
 public:
-	Fraction() {}
-	Fraction(T numerator, U denominator) : numerator_(numerator), denominator_(denominator) {}
+	Fraction(T, T);
 
-	Fraction operator* (const Fraction&);
-	Fraction operator/ (const Fraction&);
-	Fraction operator+ (const Fraction&);
-	Fraction operator- (const Fraction&);
-	bool operator== (const Fraction&);
-	bool operator!= (const Fraction&);
-	bool operator> (const Fraction&);
-	bool operator>= (const Fraction&);
-	bool operator< (const Fraction&);
-	bool operator<= (const Fraction&);
+	Fraction operator* (Fraction const&);
+	Fraction operator/ (Fraction const&);
+	Fraction operator+ (Fraction const&);
+	Fraction operator- (Fraction const&);
+	Fraction operator= (Fraction const&);
+	bool operator== (Fraction const&);
+	bool operator!= (Fraction const&);
+	bool operator> (Fraction const&);
+	bool operator>= (Fraction const&);
+	bool operator< (Fraction const&);
+	bool operator<= (Fraction const&);
 
-	void Display();
-	T GetNumerator() { return numerator_; }
-	T GetDenominator() { return denominator_; }
+	double Evaluate() const; //Evaluates fraction (ie numerator / denominator)
+
+	T GetNumerator() const { return numerator_; }
+	T GetDenominator() const { return denominator_; }
 
 private:
 	T numerator_;
-	U denominator_;
+	T denominator_;
 
-	T lcm(T, U);
-	Fraction reduce(const Fraction&);
+	void validate(); //To Validate denominator is > 0 as well as calls reduce method
+	T lcm(T, T) const; //To find the Least Common Multiple of fractions, used for add/subtract as well as ordering
+	void reduce(); //Reduces fraction to lowest form (eg 4/8 -> 1/2). 
 };
 
-template<typename T, typename U>
-Fraction<T, U> Fraction<T, U>::operator* (const Fraction& frac) {
-	Fraction<T, U> temp;
+//Constructs a Fraction object. Will validate (ie check denominator > 0) and reduce fraction (eg 4/8 -> 1/2)
+template<typename T>
+Fraction<T>::Fraction(T numerator, T denominator) {
+	numerator_ = numerator;
+	denominator_ = denominator;
+
+	validate();
+}
+
+template<typename T>
+Fraction<T> Fraction<T>::operator* (const Fraction& frac) {
+	Fraction<T> temp;
 	temp.numerator_ = numerator_ * frac.numerator_;
 	temp.denominator_ = denominator_ * frac.denominator_;
 	return temp;
 }
 
-template<typename T, typename U>
-Fraction<T, U> Fraction<T, U>::operator/ (const Fraction& frac) {
-	Fraction<T, U> temp;
+template<typename T>
+Fraction<T> Fraction<T>::operator/ (const Fraction& frac) {
+	Fraction<T> temp;
 	temp.numerator_ = numerator_ * frac.denominator_;
 	temp.denominator_ = denominator_ * frac.numerator_;
 	return temp;
 }
 
-template<typename T, typename U>
-Fraction<T, U> Fraction<T, U>::operator+ (const Fraction& frac) {
-	Fraction<T, U> temp;
+template<typename T>
+Fraction<T> Fraction<T>::operator+ (const Fraction& frac) {
+	Fraction<T> temp;
 	T least = lcm(denominator_, frac.denominator_);
 	temp.numerator_ = (numerator_ * (least / denominator_)) + (frac.numerator_ * (least / frac.denominator_));
 	temp.denominator_ = least;
 	return reduce(temp);
 }
 
-template<typename T, typename U>
-Fraction<T, U> Fraction<T, U>::operator- (const Fraction& frac) {
-	Fraction<T, U> temp;
+template<typename T>
+Fraction<T> Fraction<T>::operator- (const Fraction& frac) {
+	Fraction<T> temp;
 	T least = lcm(denominator_, frac.denominator_);
 	temp.numerator_ = (numerator_ * (least / denominator_)) - (frac.numerator_ * (least / frac.denominator_));
 	temp.denominator_ = least;
 	return reduce(temp);
 }
 
-template<typename T, typename U>
-bool Fraction<T, U>::operator== (const Fraction& frac) {
+template<typename T>
+bool Fraction<T>::operator== (const Fraction& frac) {
 	return ((numerator_ / denominator_) == (frac.numerator_ / frac.denominator_));
 }
 
-template<typename T, typename U>
-void Fraction<T, U>::Display() {
-	cout << numerator_ << " / " << denominator_ << endl;
+//Returns result of fraction as a floating point number
+template<typename T>
+double Fraction<T>::Evaluate() const {
+	return ((double)numerator_ / (double)denominator_);
 }
 
-template<typename T, typename U>
-T Fraction<T, U>::lcm(T a, U b) {
+//Validates that the denominator is > 0 otherwise throws assert, if in debug, or standard exception, if not; Then reduces fraction
+template<typename T>
+void Fraction<T>::validate() {
+	if (denominator_ == 0)
+	{
+		assert(denominator_ != 0);
+		throw std::out_of_range("denominator = 0");
+	}
+
+	reduce();
+}
+
+template<typename T>
+T Fraction<T>::lcm(T a, T b) const {
 	T m, n;
 
 	m = a;
@@ -116,20 +143,23 @@ T Fraction<T, U>::lcm(T a, U b) {
 	return m;
 }
 
-template<typename T, typename U>
-Fraction<T, U>  Fraction<T, U>::reduce(const Fraction& frac) {
-	T a = abs(frac.numerator_);
-	U b = abs(frac.denominator_);
-	T c = a % b;
-	while (c != 0)
+template<typename T>
+void Fraction<T>::reduce() {
+	T a = std::abs(numerator_);
+	T b = std::abs(denominator_); //can result in b being negative which may produce unintended result. Make all values positive
+	T c = fmod(a,b);
+
+	//Taking an mod of floating point numbers can result in values 'close to' zero w/o being zero
+	//I added a 'SMALL' value of 1-e10 to accomodate rounding errors
+	while (c != 0 && c > SMALL)
 	{
 		a = b;
 		b = c;
-		c = a % b;
+		c = fmod(a,b);
 	}
 
-	Fraction<T, U> temp((frac.numerator_ / b), (frac.denominator_ / b));
-	return temp;
+	numerator_ /= b;
+	denominator_ /= b;
 }
 
 #endif
